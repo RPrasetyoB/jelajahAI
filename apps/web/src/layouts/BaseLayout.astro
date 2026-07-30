@@ -584,9 +584,9 @@ const pageSchema =
       grid-template-columns: minmax(0, 1fr) auto;
       grid-template-areas: "brand theme" "nav nav";
       align-items: center;
-      width: min(100% - 1.2rem, 40rem);
+      width: min(100% - 2rem, 40rem);
       margin-top: 0.75rem;
-      padding: 0.85rem;
+      padding: 1rem;
     }
     .brand { grid-area: brand; }
     .theme-toggle { grid-area: theme; }
@@ -608,7 +608,7 @@ const pageSchema =
     .brand { min-width: 0; }
     .brand-logo { height: 2rem; max-width: 3.6rem; }
     .brand-slogan { font-size: 0.48rem; }
-    :global(main.page:not(.homepage)) { width: min(100% - 1.2rem, 40rem); padding-top: 1.5rem; }
+    :global(main.page:not(.homepage)) { width: min(100% - 2rem, 40rem); padding-top: 1.5rem; }
     :global(main.page:not(.homepage) .hero.compact) { min-height: 13rem; padding: 2.1rem 1.1rem 1.35rem; border-radius: 1.2rem; }
     :global(main.page:not(.homepage) .hero.compact)::before { top: 0.85rem; right: 1rem; font-size: 0.5rem; }
     :global(main.page:not(.homepage) .hero.compact)::after { inset: auto 1.1rem 0; }
