@@ -1,0 +1,41 @@
+﻿
+> @jelajahai/cms@0.1.0 dev D:\repository\portfolio\jelajahAI\apps\cms
+> strapi develop
+
+node.exe : - Cleaning dist dir D:/repository/portfolio/jelajahAI/apps/cms/dist
+At C:\Users\rudos\AppData\Roaming\npm\pnpm.ps1:24 char:5
++     & "node$exe"  "$basedir/node_modules/pnpm/bin/pnpm.cjs" $args
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (- Cleaning dist...I/apps/cms/dist:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ΓêÜ Cleaning dist dir (11ms)
+- Loading Strapi
+(node:9580) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 
+'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq 
+semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[2026-07-22 21:57:28.032] [33mwarn[39m: [email]: The "sendmail" email provider is still supported, but for most production setups that use a dedicated SMTP relay, consider switching to @strapi/provider-email-nodemailer (set `provider` to `"nodemailer"` in your email plugin config). This message is only shown in development.
+- Building build context
+ΓêÜ Building build context (94ms)
+- Creating admin
+ΓêÜ Creating admin (427ms)
+ΓêÜ Loading Strapi (6377ms)
+- Generating types
+ΓêÜ Generating types (203ms)
+- Compiling TS
+- Cleaning dist dir D:/repository/portfolio/jelajahAI/apps/cms/dist
+ΓêÜ Cleaning dist dir (31ms)
+ΓêÜ Compiling TS (1786ms)
+[2026-07-22 21:57:33.688] [31merror[39m: The port 1337 is already used by another application.
+[2026-07-22 21:57:33.688] [32minfo[39m: Shutting down Strapi
+D:\repository\portfolio\jelajahAI\apps\cms:
+ΓÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILΓÇë @jelajahai/cms@0.1.0 dev: `strapi develop`
+Exit status 1

@@ -1,0 +1,172 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { contentService } from "../lib/services/content-service";
+import { getSearchIndex } from "../lib/route-data";
+
+const content = await contentService.getHomeContent();
+const searchIndex = getSearchIndex(content);
+---
+
+<BaseLayout
+  title="Search | JelajahAI"
+  description="Search across articles, tools, prompts, tutorials, models, categories, tags, and authors."
+  canonical="https://jelajahai.dev/search/"
+  robots="noindex,follow"
+>
+  <main id="main-content" class="page">
+    <section class="hero compact">
+      <p class="eyebrow">Search</p>
+      <h1>Search everything in one place.</h1>
+      <p class="lede">
+        Find articles, tools, prompts, tutorials, and model references using a single
+        fast search bar powered by Fuse.js.
+      </p>
+    </section>
+
+    <section class="search-shell">
+      <div class="search-head">
+        <div>
+          <p class="search-kicker">Signal finder / 02</p>
+          <label class="search-label" for="search-input">Search the knowledge field</label>
+        </div>
+        <span class="search-command" aria-hidden="true">⌘ K</span>
+      </div>
+      <div class="search-input-wrap">
+        <span aria-hidden="true">⌕</span>
+        <input id="search-input" type="search" placeholder="Try 'agents', 'RAG', or 'Cursor'" />
+      </div>
+      <p id="search-status" class="search-status" aria-live="polite"></p>
+      <div id="search-results" class="search-results"></div>
+    </section>
+  </main>
+  <script type="application/json" id="search-index" is:inline set:html={JSON.stringify(searchIndex)}></script>
+</BaseLayout>
+
+<script>
+  import "../scripts/search";
+</script>
+
+<style>
+  .compact {
+    padding-top: 2rem;
+  }
+
+  .search-shell {
+    display: grid;
+    gap: 1rem;
+    padding: 1.25rem;
+    border-radius: 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  .search-head {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .search-kicker {
+    margin: 0 0 0.45rem;
+    color: #9ff6dc;
+    font: 0.6rem "DM Mono", monospace;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .search-label {
+    display: block;
+    font-weight: 700;
+    color: var(--text-main);
+  }
+
+  .search-command {
+    color: var(--text-subtle);
+    font: 0.62rem "DM Mono", monospace;
+  }
+
+  .search-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-height: 3.2rem;
+    padding: 0 1rem;
+    border-radius: 0.9rem;
+    border: 1px solid rgba(157, 183, 255, 0.28);
+    background: rgba(255,255,255,.06);
+    color: #9db0ff;
+    font-size: 1.4rem;
+  }
+
+  input {
+    width: 100%;
+    min-height: 3rem;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text-main);
+  }
+
+  .search-status {
+    margin: 0;
+    color: var(--text-subtle);
+  }
+
+  .search-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+  }
+
+  .result-card {
+    padding: 1.1rem;
+    border-radius: 1.1rem;
+    background: var(--surface-strong);
+    border: 1px solid var(--border);
+    transition: transform 180ms ease, border-color 180ms ease;
+  }
+
+  .result-card:hover { transform: translateY(-3px); border-color: rgba(116, 232, 237, 0.48); }
+
+  .result-card h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.05rem;
+  }
+
+  .result-card a {
+    color: var(--text-main);
+    text-decoration: none;
+  }
+
+  .result-card p {
+    margin: 0;
+    color: var(--text-subtle);
+    line-height: 1.6;
+  }
+
+  .result-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.85rem;
+  }
+
+  .result-meta span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.75rem;
+    padding: 0 0.55rem;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-subtle);
+    font-size: 0.82rem;
+  }
+
+  @media (max-width: 560px) {
+    .search-head { align-items: start; }
+    .search-command { display: none; }
+  }
+</style>

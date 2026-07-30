@@ -1,0 +1,328 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ContentGrid from "../../components/ContentGrid.astro";
+import { contentService } from "../../lib/services/content-service";
+import {
+  getCollectionCards,
+  getCollectionEntries,
+  getCollectionDescription,
+  getCollectionTitle
+} from "../../lib/route-data";
+import type { AiTool } from "@jelajahai/types";
+import type { ContentKind } from "../../lib/content-types";
+
+export async function getStaticPaths() {
+  const content = await contentService.getHomeContent();
+  const collections: ContentKind[] = ["articles", "tools", "prompts", "tutorials", "models"];
+
+  return collections.map((collection) => ({
+    params: { collection },
+      props: {
+        title: getCollectionTitle(collection),
+        description: getCollectionDescription(collection),
+        items: getCollectionCards(content, collection),
+        entries: getCollectionEntries(content, collection),
+        collection
+      }
+    }));
+}
+
+type Props = {
+  title: string;
+  description: string;
+  items: ReturnType<typeof getCollectionCards>;
+  entries: ReturnType<typeof getCollectionEntries>;
+  collection: ContentKind;
+};
+
+const { title, description, items, entries, collection } = Astro.props as Props;
+const toolEntries = collection === "tools" ? (entries as AiTool[]) : [];
+const toolCategories = collection === "tools"
+  ? Array.from(
+      new Map(
+        toolEntries
+          .filter((entry) => entry.category)
+          .map((entry) => [entry.category!.slug, entry.category!])
+      ).values()
+    )
+  : [];
+---
+
+<BaseLayout title={`${title} | JelajahAI`} description={description} canonical={`https://jelajahai.dev/${collection}/`}>
+  <main id="main-content" class="page">
+    <section class="hero compact">
+      <p class="eyebrow">{title}</p>
+      <h1>{description}</h1>
+      <p class="lede">
+        Browse the latest curated entries in this section. Each detail page links back
+        to the broader hub for context and discovery.
+      </p>
+      {collection === "models" && (
+        <div class="actions">
+          <a href="/models/compare/">Compare models</a>
+        </div>
+      )}
+    </section>
+
+    {collection === "tools" ? (
+      <section class="tools-directory" aria-labelledby="tool-filters-heading">
+        <div class="section-head">
+          <div>
+            <p class="table-kicker" id="tool-filters-heading">Tool filters</p>
+            <h2>Browse by category and pricing model.</h2>
+          </div>
+          <p class="filter-status" id="tool-filter-status" aria-live="polite"></p>
+        </div>
+
+        <div class="filter-row" data-filter-group="pricing" aria-label="Filter tools by pricing model">
+          <button type="button" class="filter-pill is-active" data-pricing-filter="all">All pricing</button>
+          <button type="button" class="filter-pill" data-pricing-filter="free">Free</button>
+          <button type="button" class="filter-pill" data-pricing-filter="freemium">Freemium</button>
+          <button type="button" class="filter-pill" data-pricing-filter="paid">Paid</button>
+          <button type="button" class="filter-pill" data-pricing-filter="enterprise">Enterprise</button>
+        </div>
+
+        <div class="filter-row" data-filter-group="category" aria-label="Filter tools by category">
+          <button type="button" class="filter-pill is-active" data-category-filter="all">All categories</button>
+          {toolCategories.map((category) => (
+            <button type="button" class="filter-pill" data-category-filter={category.slug}>
+              {category.name}
+            </button>
+          ))}
+        </div>
+
+        <div class="tools-grid" id="tools-grid">
+          {toolEntries.map((entry) => (
+            <article
+              class="tool-card"
+              data-tool-card
+              data-pricing={entry.pricingModel}
+              data-category={entry.category?.slug ?? "uncategorized"}
+            >
+              <div class="card-topline">
+                <span class="card-kicker">{entry.pricingModel}</span>
+                <span class="card-index">{entry.category?.name ?? "Uncategorized"}</span>
+                <span class="card-arrow" aria-hidden="true">&#8599;</span>
+              </div>
+              <h2><a href={`/tools/${entry.slug}/`}>{entry.name}</a></h2>
+              <p>{entry.shortDescription}</p>
+              <div class="tool-links">
+                <a href={`/tools/${entry.slug}/`}>Open profile</a>
+                <a href={entry.websiteUrl} target="_blank" rel="noreferrer">Visit website</a>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    ) : (
+      <ContentGrid items={items} kindLabel={title} pathSegment={collection} />
+    )}
+  </main>
+</BaseLayout>
+
+<script is:inline>
+  const pricingButtons = Array.from(document.querySelectorAll("[data-pricing-filter]"));
+  const categoryButtons = Array.from(document.querySelectorAll("[data-category-filter]"));
+  const cards = Array.from(document.querySelectorAll("[data-tool-card]"));
+  const status = document.getElementById("tool-filter-status");
+
+  if (cards.length > 0) {
+    let activePricing = "all";
+    let activeCategory = "all";
+
+    const updateStatus = () => {
+      const visibleCards = cards.filter((card) => !card.hasAttribute("hidden")).length;
+      status && (status.textContent = `${visibleCards} tool${visibleCards === 1 ? "" : "s"} visible`);
+    };
+
+    const applyFilters = () => {
+      cards.forEach((card) => {
+        const element = card;
+        const pricing = element.getAttribute("data-pricing");
+        const category = element.getAttribute("data-category");
+        const matchesPricing = activePricing === "all" || pricing === activePricing;
+        const matchesCategory = activeCategory === "all" || category === activeCategory;
+        element.toggleAttribute("hidden", !(matchesPricing && matchesCategory));
+      });
+      updateStatus();
+    };
+
+    const setActive = (group, value) => {
+      const buttons = group === "pricing" ? pricingButtons : categoryButtons;
+      buttons.forEach((button) => {
+        const isActive = button.getAttribute(group === "pricing" ? "data-pricing-filter" : "data-category-filter") === value;
+        button.classList.toggle("is-active", isActive);
+      });
+    };
+
+    pricingButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        activePricing = button.getAttribute("data-pricing-filter") ?? "all";
+        setActive("pricing", activePricing);
+        applyFilters();
+      });
+    });
+
+    categoryButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        activeCategory = button.getAttribute("data-category-filter") ?? "all";
+        setActive("category", activeCategory);
+        applyFilters();
+      });
+    });
+
+    applyFilters();
+  }
+</script>
+
+<style>
+  .compact {
+    padding-top: 2rem;
+  }
+
+  .actions {
+    margin-top: 1.5rem;
+  }
+
+  .actions a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0 1.05rem;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--accent-text);
+    text-decoration: none;
+    font-weight: 700;
+  }
+
+  .tools-directory {
+    margin-top: 2rem;
+  }
+
+  .table-kicker {
+    margin: 0 0 0.45rem;
+    color: #9ff6dc;
+    font: 0.6rem "DM Mono", monospace;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .filter-status {
+    margin: 0;
+    color: var(--text-subtle);
+    font: 0.62rem "DM Mono", monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin-top: 1rem;
+  }
+
+  .filter-pill {
+    min-height: 2.4rem;
+    padding: 0 0.9rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-main);
+    cursor: pointer;
+    transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+  }
+
+  .filter-pill:hover {
+    transform: translateY(-2px);
+    border-color: rgba(116, 232, 237, 0.55);
+  }
+
+  .filter-pill.is-active {
+    background: linear-gradient(135deg, #aeb7ff, #6d9eff 55%, #62dded);
+    color: #07101d;
+    border-color: transparent;
+    font-weight: 700;
+  }
+
+  .tools-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem;
+    margin-top: 1.25rem;
+  }
+
+  .tool-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 13rem;
+    padding: 1.2rem;
+    border-radius: 1.15rem;
+    background: linear-gradient(145deg, rgba(87, 226, 222, 0.12), rgba(255, 255, 255, 0.035));
+    border: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+  }
+
+  .tool-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(116, 232, 237, 0.48);
+    background: linear-gradient(145deg, rgba(78, 113, 255, 0.16), rgba(255, 255, 255, 0.035));
+  }
+
+  .tool-card h2 {
+    margin: auto 0 0.55rem;
+    font-size: clamp(1.2rem, 2vw, 1.7rem);
+    line-height: 1.05;
+    letter-spacing: -0.055em;
+  }
+
+  .tool-card h2 a {
+    color: var(--text-main);
+    text-decoration: none;
+  }
+
+  .tool-card p {
+    margin: 0;
+    color: var(--text-subtle);
+    line-height: 1.65;
+  }
+
+  .tool-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+    margin-top: 1.15rem;
+  }
+
+  .tool-links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.3rem;
+    padding: 0 0.85rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    text-decoration: none;
+    font-size: 0.86rem;
+    font-weight: 700;
+  }
+
+  .tool-links a:first-child {
+    background: var(--accent);
+    color: var(--accent-text);
+  }
+
+  .tool-card[hidden] {
+    display: none;
+  }
+
+  @media (max-width: 760px) {
+    .tools-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

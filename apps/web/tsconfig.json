@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@jelajahai/config": ["../../packages/config/src/index.ts"],
+      "@jelajahai/ui": ["../../packages/ui/src/index.ts"],
+      "@jelajahai/types": ["../../packages/types/src/index.ts"],
+      "@jelajahai/utils": ["../../packages/utils/src/index.ts"]
+    },
+    "types": ["astro/client"]
+  },
+  "include": ["src", "astro.config.mjs"]
+}

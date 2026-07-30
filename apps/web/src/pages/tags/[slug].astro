@@ -1,0 +1,98 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ContentGrid from "../../components/ContentGrid.astro";
+import { contentService } from "../../lib/services/content-service";
+import { getTagCollections, getTags, toCard } from "../../lib/route-data";
+
+export async function getStaticPaths() {
+  const content = await contentService.getHomeContent();
+
+  return getTags(content).map((tag) => ({
+    params: { slug: tag.slug }
+  }));
+}
+
+const content = await contentService.getHomeContent();
+const tag = getTags(content).find((entry) => entry.slug === Astro.params.slug);
+
+if (!tag) {
+  throw new Error(`Missing tag: ${Astro.params.slug}`);
+}
+
+const collections = getTagCollections(content, tag.slug);
+const sections = [
+  {
+    title: "Articles",
+    path: "articles",
+    items: collections.articles.map((entry) => toCard(entry))
+  },
+  {
+    title: "Tools",
+    path: "tools",
+    items: collections.tools.map((entry) => toCard(entry))
+  },
+  {
+    title: "Prompts",
+    path: "prompts",
+    items: collections.prompts.map((entry) => toCard(entry))
+  },
+  {
+    title: "Tutorials",
+    path: "tutorials",
+    items: collections.tutorials.map((entry) => toCard(entry))
+  }
+];
+---
+
+<BaseLayout
+  title={`${tag.name} | Tags | JelajahAI`}
+  description={tag.description ?? `Browse related content tagged ${tag.name}.`}
+  canonical={`https://jelajahai.dev/tags/${tag.slug}/`}
+>
+  <main id="main-content" class="page">
+    <section class="hero compact">
+      <p class="eyebrow">Tag</p>
+      <h1>{tag.name}</h1>
+      <p class="lede">{tag.description}</p>
+    </section>
+
+    {sections.map((section) =>
+      section.items.length > 0 ? (
+        <section class="section-block">
+          <div class="section-head">
+            <h2>{section.title}</h2>
+            <a href={`/${section.path}/`}>View all</a>
+          </div>
+          <ContentGrid items={section.items} kindLabel={section.title} pathSegment={section.path} />
+        </section>
+      ) : null
+    )}
+  </main>
+</BaseLayout>
+
+<style>
+  .compact {
+    padding-top: 2rem;
+  }
+
+  .section-block {
+    margin-top: 2rem;
+  }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .section-head h2 {
+    margin: 0;
+  }
+
+  .section-head a {
+    color: var(--text-subtle);
+    text-decoration: none;
+  }
+</style>

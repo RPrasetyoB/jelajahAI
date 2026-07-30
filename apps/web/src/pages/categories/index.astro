@@ -1,0 +1,44 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import TaxonomyGrid from "../../components/TaxonomyGrid.astro";
+import { contentService } from "../../lib/services/content-service";
+import { getCategories, getCategoryCollections } from "../../lib/route-data";
+
+const content = await contentService.getHomeContent();
+
+const items = getCategories(content).map((category) => ({
+  title: category.name,
+  slug: category.slug,
+  description: category.description ?? "Explore everything grouped under this category.",
+  count:
+    getCategoryCollections(content, category.slug).articles.length +
+    getCategoryCollections(content, category.slug).tools.length +
+    getCategoryCollections(content, category.slug).prompts.length +
+    getCategoryCollections(content, category.slug).tutorials.length
+}));
+---
+
+<BaseLayout
+  title="Categories | JelajahAI"
+  description="Browse all JelajahAI categories and open a focused view of the content grouped under each one."
+  canonical="https://jelajahai.dev/categories/"
+>
+  <main id="main-content" class="page">
+    <section class="hero compact">
+      <p class="eyebrow">Categories</p>
+      <h1>Browse the main content buckets.</h1>
+      <p class="lede">
+        Categories keep the knowledge hub organized around clear themes, making it easy
+        to find articles, tools, prompts, tutorials, and model references.
+      </p>
+    </section>
+
+    <TaxonomyGrid items={items} basePath="categories" />
+  </main>
+</BaseLayout>
+
+<style>
+  .compact {
+    padding-top: 2rem;
+  }
+</style>

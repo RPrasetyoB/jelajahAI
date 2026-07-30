@@ -1,0 +1,24 @@
+{
+  "name": "@jelajahai/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "lint": "astro check",
+    "typecheck": "astro check"
+  },
+  "dependencies": {
+    "@jelajahai/config": "workspace:*",
+    "@jelajahai/ui": "workspace:*",
+    "@jelajahai/types": "workspace:*",
+    "@jelajahai/utils": "workspace:*",
+    "astro": "^5.13.1",
+    "fuse.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.5",
+    "sharp": "^0.35.3",
+    "typescript": "^5.9.2"
+  }
+}

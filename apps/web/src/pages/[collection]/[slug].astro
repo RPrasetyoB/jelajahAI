@@ -1,0 +1,828 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { contentService } from "../../lib/services/content-service";
+import { renderMarkdown } from "../../lib/render-markdown";
+import {
+  getCollectionDescription,
+  getCollectionEntry,
+  getCollectionDetail,
+  getCollectionEntries,
+  getCollectionTitle
+} from "../../lib/route-data";
+import type { ContentKind } from "../../lib/content-types";
+
+export async function getStaticPaths() {
+  const content = await contentService.getHomeContent();
+  const collections: ContentKind[] = ["articles", "tools", "prompts", "tutorials", "models"];
+
+  return collections.flatMap((collection) =>
+    getCollectionEntries(content, collection).map((item) => ({
+      params: { collection, slug: item.slug },
+      props: { collection, slug: item.slug }
+    }))
+  );
+}
+
+type Props = {
+  collection: ContentKind;
+  slug: string;
+};
+
+const { collection, slug } = Astro.props as Props;
+const content = await contentService.getHomeContent();
+const entry = getCollectionEntry(content, collection, slug);
+const detail = getCollectionDetail(content, collection, slug);
+const articleBodyHtml = collection === "articles" ? renderMarkdown(detail?.body ?? "") : "";
+const toolPricingTabs =
+  collection === "tools" && entry && "shortDescription" in entry ? entry.pricingTabs ?? [] : [];
+const toolPricingDefaultTab =
+  collection === "tools" && entry && "shortDescription" in entry ? entry.pricingDefaultTab ?? toolPricingTabs[0]?.id ?? "" : "";
+const toolPricingTabsPreview =
+  toolPricingTabs.length > 0
+    ? toolPricingTabs
+        .map((tab) =>
+          [
+            `Pricing tab: ${tab.label}`,
+            tab.description ? `Tab description: ${tab.description}` : "",
+            ...tab.plans.map((plan) =>
+              [
+                `Plan: ${plan.name}`,
+                plan.description ? `Description: ${plan.description}` : "",
+                `Price: ${plan.priceLabel}`,
+                plan.billingLabel ? `Billing: ${plan.billingLabel}` : "",
+                plan.badge ? `Badge: ${plan.badge}` : "",
+                plan.ctaLabel ? `CTA: ${plan.ctaLabel}` : "",
+                plan.highlights.length ? `Highlights: ${plan.highlights.join(", ")}` : "",
+                plan.featured ? "Featured: yes" : ""
+              ]
+                .filter(Boolean)
+                .join("\n")
+            )
+          ]
+            .filter(Boolean)
+            .join("\n\n")
+        )
+        .join("\n\n")
+    : "";
+const toolSourcePreview =
+  collection === "tools" && entry && "shortDescription" in entry
+    ? [
+        `Short description: ${entry.shortDescription}`,
+        entry.longDescription ? `Long description:\n${entry.longDescription}` : "",
+        entry.websiteUrl ? `Website: ${entry.websiteUrl}` : "",
+        entry.pricingSummary ? `Pricing summary:\n${entry.pricingSummary}` : "",
+        entry.pricingModel ? `Pricing model: ${entry.pricingModel}` : "",
+        entry.startingPrice ? `Starting price: ${entry.startingPrice}` : "",
+        entry.billingPeriod ? `Billing period: ${entry.billingPeriod}` : "",
+        typeof entry.freeTierAvailable === "boolean" ? `Free tier available: ${entry.freeTierAvailable ? "yes" : "no"}` : "",
+        entry.pricingNotes ? `Pricing notes:\n${entry.pricingNotes}` : "",
+        entry.pricingDefaultTab ? `Default pricing tab: ${entry.pricingDefaultTab}` : "",
+        toolPricingTabsPreview,
+        entry.pros.length ? `Pros: ${entry.pros.join(", ")}` : "",
+        entry.cons.length ? `Cons: ${entry.cons.join(", ")}` : ""
+      ]
+        .filter(Boolean)
+        .join("\n\n")
+    : "";
+
+if (!detail) {
+  throw new Error(`Missing content for ${collection}/${slug}`);
+}
+
+if (!entry) {
+  throw new Error(`Missing entry for ${collection}/${slug}`);
+}
+
+const taxonomyLinks = [
+  detail.category ? { label: detail.category.name, href: `/categories/${detail.category.slug}/` } : null,
+  ...(detail.tags ?? []).map((tag) => ({ label: tag.name, href: `/tags/${tag.slug}/` })),
+  detail.author ? { label: detail.author.name, href: `/authors/${detail.author.slug}/` } : null
+].filter((item): item is { label: string; href: string } => item !== null);
+
+const related = getCollectionEntries(content, collection)
+  .filter((item) => item.slug !== slug)
+  .filter((item) => {
+    if (detail.category && "category" in item && item.category?.slug === detail.category.slug) {
+      return true;
+    }
+
+    if ("tags" in item && (detail.tags ?? []).some((tag) => item.tags.some((itemTag) => itemTag.slug === tag.slug))) {
+      return true;
+    }
+
+    if ("author" in item && detail.author?.slug && item.author?.slug === detail.author.slug) {
+      return true;
+    }
+
+    return false;
+  })
+  .slice(0, 3)
+  .map((item) => getCollectionDetail(content, collection, item.slug))
+  .filter((item): item is NonNullable<typeof item> => item !== null);
+---
+
+<BaseLayout
+  title={`${detail.title} | ${getCollectionTitle(collection)} | JelajahAI`}
+  description={detail.excerpt ?? getCollectionDescription(collection)}
+  canonical={`https://jelajahai.dev/${collection}/${slug}/`}
+>
+  <main id="main-content" class="page">
+    <article class:list={["detail", { "tool-detail": collection === "tools" }]}>
+      <p class="eyebrow">{getCollectionTitle(collection)}</p>
+      <h1>{detail.title}</h1>
+      {detail.excerpt && <p class="lede">{detail.excerpt}</p>}
+      {taxonomyLinks.length > 0 && (
+        <nav class="meta-links" aria-label="Related taxonomy">
+          {taxonomyLinks.map((link) => <a href={link.href}>{link.label}</a>)}
+        </nav>
+      )}
+      {collection === "articles" && (
+        <section class="article-layout">
+          <div class="panel">
+            <h2>Article</h2>
+            <div class="markdown-body" set:html={articleBodyHtml} />
+          </div>
+          <div class="panel">
+            <h2>Context</h2>
+            <dl>
+              <div>
+                <dt>Category</dt>
+                <dd>{detail.category?.name ?? "Uncategorized"}</dd>
+              </div>
+              <div>
+                <dt>Author</dt>
+                <dd>{detail.author?.name ?? "Editorial"}</dd>
+              </div>
+            </dl>
+          </div>
+        </section>
+      )}
+
+      {collection === "tools" && "shortDescription" in entry && (
+        <section class="tool-layout">
+          <div class="panel tool-overview">
+            <h2>Overview</h2>
+            <p>{entry.longDescription ?? detail.body}</p>
+          </div>
+          <div class="panel tool-source-preview">
+            <h2>Source preview</h2>
+            <pre class="tool-source-block">{toolSourcePreview}</pre>
+          </div>
+          <div class="panel tool-pricing">
+            <h2>Pricing</h2>
+            <p>{entry.pricingSummary ?? entry.pricingModel}</p>
+            {toolPricingTabs.length > 0 ? (
+              <div class="tool-pricing-shell" data-pricing-root data-default-tab={toolPricingDefaultTab || toolPricingTabs[0]?.id || ""}>
+                {toolPricingTabs.length > 1 && (
+                  <div class="tool-pricing-switcher" role="tablist" aria-label="Pricing views">
+                    {toolPricingTabs.map((tab) => (
+                      <button
+                        type="button"
+                        class:list={["tool-pricing-tab-button", { "is-active": (toolPricingDefaultTab || toolPricingTabs[0]?.id) === tab.id }]}
+                        data-pricing-tab-trigger={tab.id}
+                        role="tab"
+                        aria-selected={(toolPricingDefaultTab || toolPricingTabs[0]?.id) === tab.id ? "true" : "false"}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {toolPricingTabs.map((tab) => (
+                  <section
+                    class:list={["tool-pricing-tab-panel", { "is-active": (toolPricingDefaultTab || toolPricingTabs[0]?.id) === tab.id }]}
+                    data-pricing-tab-panel={tab.id}
+                    hidden={(toolPricingDefaultTab || toolPricingTabs[0]?.id) !== tab.id}
+                  >
+                    {tab.description && <p class="tool-pricing-tab-description">{tab.description}</p>}
+                    <div class="tool-pricing-plan-grid">
+                      {tab.plans.map((plan) => (
+                        <article class:list={["tool-pricing-plan", { "is-featured": plan.featured }]}>
+                          <div class="tool-pricing-plan-header">
+                            {plan.badge && <div class="tool-pricing-plan-badge">{plan.badge}</div>}
+                            <h3>{plan.name}</h3>
+                            {plan.description && <p class="tool-pricing-plan-description">{plan.description}</p>}
+                            <div class="tool-pricing-plan-price">{plan.priceLabel}</div>
+                            {plan.billingLabel && <div class="tool-pricing-plan-billing">{plan.billingLabel}</div>}
+                          </div>
+                          {plan.ctaLabel && (
+                            <a class="button tool-pricing-plan-cta" href={plan.ctaUrl || entry.websiteUrl} target="_blank" rel="noreferrer">
+                              {plan.ctaLabel}
+                            </a>
+                          )}
+                          {plan.highlights.length > 0 && (
+                            <>
+                              <p class="tool-pricing-plan-label">What&apos;s included</p>
+                              <ul class="tool-pricing-plan-highlights">
+                                {plan.highlights.map((highlight) => <li>{highlight}</li>)}
+                              </ul>
+                            </>
+                          )}
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            ) : (entry.startingPrice || entry.billingPeriod || typeof entry.freeTierAvailable === "boolean" || entry.pricingNotes) ? (
+              <dl class="tool-pricing-list">
+                {entry.startingPrice && (
+                  <div>
+                    <dt>Starting price</dt>
+                    <dd>{entry.startingPrice}</dd>
+                  </div>
+                )}
+                {entry.billingPeriod && (
+                  <div>
+                    <dt>Billing period</dt>
+                    <dd>{entry.billingPeriod}</dd>
+                  </div>
+                )}
+                {typeof entry.freeTierAvailable === "boolean" && (
+                  <div>
+                    <dt>Free tier</dt>
+                    <dd>{entry.freeTierAvailable ? "Available" : "No"}</dd>
+                  </div>
+                )}
+                {entry.pricingNotes && (
+                  <div>
+                    <dt>Notes</dt>
+                    <dd>{entry.pricingNotes}</dd>
+                  </div>
+                )}
+              </dl>
+            ) : null}
+            <p class="tool-pricing-model">Model: {entry.pricingModel}</p>
+          </div>
+          <div class="tool-pros-cons-grid">
+            <div class="panel">
+              <h2>Pros</h2>
+              <ul>
+                {entry.pros.map((item) => <li>{item}</li>)}
+              </ul>
+            </div>
+            <div class="panel">
+              <h2>Cons</h2>
+              <ul>
+                {entry.cons.map((item) => <li>{item}</li>)}
+              </ul>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {collection === "prompts" && "promptText" in entry && (
+        <section class="detail-grid">
+          <div class="panel">
+            <h2>Prompt</h2>
+            <pre class="prompt-block" id="prompt-text">{entry.promptText}</pre>
+            <button class="button" id="copy-prompt" type="button">Copy prompt</button>
+          </div>
+          <div class="panel">
+            <h2>Use Case</h2>
+            <p>{entry.useCaseDescription}</p>
+            {entry.recommendedModels.length > 0 && (
+              <>
+                <h3>Recommended models</h3>
+                <ul>
+                  {entry.recommendedModels.map((model) => <li>{model.name}</li>)}
+                </ul>
+              </>
+            )}
+          </div>
+        </section>
+      )}
+
+      {collection === "tutorials" && "steps" in entry && (
+        <section class="detail-grid">
+          <div class="panel">
+            <h2>Steps</h2>
+            <ol>
+              {entry.steps.map((step) => (
+                <li>
+                  <strong>{step.title}</strong>
+                  <p>{step.body}</p>
+                  {step.codeBlock && <pre class="prompt-block">{step.codeBlock}</pre>}
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div class="panel">
+            <h2>Details</h2>
+            <dl>
+              <div>
+                <dt>Difficulty</dt>
+                <dd>{entry.difficulty}</dd>
+              </div>
+              <div>
+                <dt>Estimated time</dt>
+                <dd>{entry.estimatedTime}</dd>
+              </div>
+            </dl>
+          </div>
+        </section>
+      )}
+
+      {collection === "models" && "vendor" in entry && (
+        <section class="detail-grid">
+          <div class="panel">
+            <h2>Capabilities</h2>
+            <p>{entry.description}</p>
+          </div>
+          <div class="panel">
+            <h2>Reference</h2>
+            <dl>
+              <div>
+                <dt>Vendor</dt>
+                <dd>{entry.vendor}</dd>
+              </div>
+              <div>
+                <dt>Context window</dt>
+                <dd>{entry.contextWindow}</dd>
+              </div>
+              <div>
+                <dt>Modalities</dt>
+                <dd>{entry.modalities.join(", ")}</dd>
+              </div>
+              <div>
+                <dt>Pricing</dt>
+                <dd>{entry.pricingSummary ?? "See vendor"}</dd>
+              </div>
+            </dl>
+            <a class="button" href={entry.docsUrl} target="_blank" rel="noreferrer">Official docs</a>
+          </div>
+        </section>
+      )}
+
+      {related.length > 0 && (
+        <section class="related">
+          <h2>Related</h2>
+          <div class="related-grid">
+            {related.map((item) => (
+              <article>
+                <p class="card-kicker">Related</p>
+                <h3><a href={`/${collection}/${item.slug}`}>{item.title}</a></h3>
+                <p>{item.excerpt}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+    </article>
+  </main>
+</BaseLayout>
+
+<script is:inline>
+  const copyButton = document.getElementById("copy-prompt");
+  const promptText = document.getElementById("prompt-text");
+
+  copyButton?.addEventListener("click", async () => {
+    if (!promptText) return;
+    await navigator.clipboard.writeText(promptText.textContent ?? "");
+    copyButton.textContent = "Copied";
+    window.setTimeout(() => {
+      copyButton.textContent = "Copy prompt";
+    }, 1200);
+  });
+
+  const pricingRoot = document.querySelector("[data-pricing-root]");
+
+  if (pricingRoot instanceof HTMLElement) {
+    const triggers = Array.from(pricingRoot.querySelectorAll("[data-pricing-tab-trigger]"));
+    const panels = Array.from(pricingRoot.querySelectorAll("[data-pricing-tab-panel]"));
+    const defaultTab =
+      pricingRoot.dataset.defaultTab || (triggers[0] instanceof HTMLElement ? triggers[0].dataset.pricingTabTrigger || "" : "");
+
+    const activateTab = (tabId) => {
+      triggers.forEach((trigger) => {
+        if (!(trigger instanceof HTMLElement)) return;
+        const active = trigger.dataset.pricingTabTrigger === tabId;
+        trigger.classList.toggle("is-active", active);
+        trigger.setAttribute("aria-selected", active ? "true" : "false");
+      });
+
+      panels.forEach((panel) => {
+        if (!(panel instanceof HTMLElement)) return;
+        const active = panel.dataset.pricingTabPanel === tabId;
+        panel.classList.toggle("is-active", active);
+        panel.hidden = !active;
+      });
+    };
+
+    if (defaultTab) {
+      activateTab(defaultTab);
+    }
+
+    triggers.forEach((trigger) => {
+      trigger.addEventListener("click", () => {
+        if (!(trigger instanceof HTMLElement)) return;
+        const tabId = trigger.dataset.pricingTabTrigger || "";
+        if (tabId) activateTab(tabId);
+      });
+    });
+  }
+</script>
+
+<style>
+  .detail {
+    max-width: 48rem;
+    padding-top: 2rem;
+  }
+
+  .tool-detail {
+    max-width: 86rem;
+  }
+
+  .article-layout {
+    display: grid;
+    gap: 1.4rem;
+    margin-top: 2rem;
+  }
+
+  .tool-layout {
+    display: grid;
+    gap: 1.85rem;
+    margin-top: 2.15rem;
+  }
+
+  .tool-pros-cons-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.4rem;
+  }
+
+  .tool-overview p {
+    max-width: 56rem;
+  }
+
+  .tool-source-block {
+    margin: 0;
+    white-space: pre-wrap;
+    color: var(--text-subtle);
+    line-height: 1.85;
+    font: 0.98rem/1.85 "Manrope", "Avenir Next", sans-serif;
+  }
+
+  .tool-pricing-model {
+    margin-top: 1rem;
+    color: var(--text-subtle);
+    font-size: 0.95rem;
+  }
+
+  .tool-pricing-shell {
+    display: grid;
+    gap: 1.25rem;
+    margin-top: 1.4rem;
+  }
+
+  .tool-pricing-switcher {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.4rem;
+    border-radius: 999px;
+    background: var(--surface-strong);
+    border: 1px solid var(--border);
+    width: fit-content;
+  }
+
+  .tool-pricing-tab-button {
+    min-height: 2.75rem;
+    padding: 0 1.05rem;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-subtle);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .tool-pricing-tab-button.is-active {
+    background: rgba(84, 140, 255, 0.16);
+    color: var(--text-main);
+  }
+
+  .tool-pricing-tab-description {
+    margin: 0;
+    color: var(--text-subtle);
+    max-width: 52rem;
+  }
+
+  .tool-pricing-plan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+  }
+
+  .tool-pricing-plan {
+    position: relative;
+    display: grid;
+    align-content: start;
+    gap: 1rem;
+    min-height: 100%;
+    padding: 1.35rem;
+    border-radius: 1.2rem;
+    border: 1px solid var(--border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 35%),
+      var(--surface-strong);
+    box-shadow: 0 14px 42px rgba(5, 12, 32, 0.18);
+  }
+
+  .tool-pricing-plan.is-featured {
+    border-color: rgba(84, 140, 255, 0.4);
+    box-shadow:
+      0 0 0 1px rgba(84, 140, 255, 0.16) inset,
+      0 18px 48px rgba(42, 82, 184, 0.16);
+    transform: translateY(-4px);
+  }
+
+  .tool-pricing-plan.is-featured::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 2px;
+    border-radius: 1.2rem 1.2rem 0 0;
+    background: linear-gradient(90deg, #6fa8ff 0%, #9d8cff 100%);
+  }
+
+  .tool-pricing-plan-header {
+    display: grid;
+    gap: 0.7rem;
+    padding-bottom: 0.95rem;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  }
+
+  .tool-pricing-plan-badge {
+    width: fit-content;
+    padding: 0.34rem 0.72rem;
+    border-radius: 999px;
+    background: rgba(84, 140, 255, 0.16);
+    color: var(--text-main);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid rgba(84, 140, 255, 0.24);
+  }
+
+  .tool-pricing-plan h3 {
+    margin: 0;
+    font-size: 1.62rem;
+    line-height: 1.05;
+  }
+
+  .tool-pricing-plan-description {
+    margin: 0;
+    color: var(--text-subtle);
+    line-height: 1.7;
+    min-height: 3.4rem;
+  }
+
+  .tool-pricing-plan-price {
+    font-size: clamp(2rem, 3vw, 2.8rem);
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+  }
+
+  .tool-pricing-plan-billing {
+    color: var(--text-subtle);
+  }
+
+  .tool-pricing-plan-cta {
+    margin-top: 0.15rem;
+    width: 100%;
+    justify-content: center;
+    font-weight: 700;
+    background: linear-gradient(180deg, rgba(84, 140, 255, 0.18), rgba(84, 140, 255, 0.08));
+  }
+
+  .tool-pricing-plan.is-featured .tool-pricing-plan-cta {
+    background: linear-gradient(135deg, #6fa8ff 0%, #7dd3fc 100%);
+    color: #07111f;
+    border-color: transparent;
+  }
+
+  .tool-pricing-plan-label {
+    margin: 0.1rem 0 0;
+    color: var(--text-subtle);
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .tool-pricing-plan-highlights {
+    display: grid;
+    gap: 0.7rem;
+    margin: 0;
+    padding-left: 0;
+    list-style: none;
+  }
+
+  .tool-pricing-plan-highlights li {
+    position: relative;
+    padding-left: 1.35rem;
+    color: var(--text-main);
+    line-height: 1.62;
+  }
+
+  .tool-pricing-plan-highlights li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: #7dd3fc;
+    font-weight: 700;
+  }
+
+  .tool-pricing-list {
+    display: grid;
+    gap: 0.8rem;
+    margin: 1.2rem 0 0;
+    padding: 0;
+  }
+
+  .tool-pricing-list div {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .tool-pricing-list dt {
+    color: var(--text-subtle);
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .tool-pricing-list dd {
+    margin: 0;
+    color: var(--text-main);
+    line-height: 1.65;
+  }
+
+  .detail-grid,
+  .related-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.15rem;
+    margin-top: 1.75rem;
+  }
+
+  .markdown-body :global(h2),
+  .markdown-body :global(h3),
+  .markdown-body :global(h4) {
+    margin: 1.5rem 0 0.75rem;
+    line-height: 1.15;
+  }
+
+  .markdown-body :global(p),
+  .markdown-body :global(li),
+  .markdown-body :global(blockquote) {
+    color: var(--text-subtle);
+    line-height: 1.8;
+    font-size: 1rem;
+  }
+
+  .markdown-body :global(p) {
+    margin: 0 0 1rem;
+  }
+
+  .markdown-body :global(ul),
+  .markdown-body :global(ol) {
+    margin: 0 0 1rem 1.25rem;
+    padding: 0;
+  }
+
+  .markdown-body :global(li + li) {
+    margin-top: 0.4rem;
+  }
+
+  .markdown-body :global(code) {
+    padding: 0.12rem 0.36rem;
+    border-radius: 0.4rem;
+    background: rgba(255, 255, 255, 0.08);
+    font-size: 0.92em;
+  }
+
+  .markdown-body :global(.markdown-code) {
+    margin: 0 0 1rem;
+    padding: 1rem 1.1rem;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    background: rgba(7, 15, 41, 0.84);
+    color: #e8efff;
+  }
+
+  .markdown-body :global(.markdown-code code) {
+    padding: 0;
+    background: transparent;
+    color: inherit;
+  }
+
+  .markdown-body :global(blockquote) {
+    margin: 0 0 1rem;
+    padding: 0.9rem 1rem;
+    border-left: 3px solid rgba(145, 167, 255, 0.55);
+    border-radius: 0 0.9rem 0.9rem 0;
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .markdown-body :global(a) {
+    color: #5da6ff;
+  }
+
+  .panel,
+  .related article {
+    padding: 1.35rem;
+    border-radius: 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  .panel h2,
+  .related h2 {
+    margin: 0 0 0.75rem;
+  }
+
+  .related {
+    margin-top: 2.25rem;
+  }
+
+  .body {
+    margin-top: 1.75rem;
+    padding: 1.25rem;
+    border-radius: 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-subtle);
+    line-height: 1.8;
+    white-space: pre-wrap;
+  }
+
+  .prompt-block {
+    margin: 0;
+    padding: 1rem;
+    border-radius: 1rem;
+    background: var(--surface-strong);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    white-space: pre-wrap;
+  }
+
+  .meta-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 1rem;
+  }
+
+  .meta-links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.2rem;
+    padding: 0 0.8rem;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    text-decoration: none;
+  }
+
+  .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.6rem;
+    padding: 0 1rem;
+    margin-top: 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface-strong);
+    color: var(--text-main);
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  dl,
+  ol,
+  ul {
+    margin: 0;
+    padding-left: 1.1rem;
+  }
+
+  li + li {
+    margin-top: 0.5rem;
+  }
+
+  h3 {
+    margin: 1rem 0 0.5rem;
+  }
+
+  @media (max-width: 700px) {
+    .tool-pros-cons-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

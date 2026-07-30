@@ -1,0 +1,40 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import TaxonomyGrid from "../../components/TaxonomyGrid.astro";
+import { contentService } from "../../lib/services/content-service";
+import { getAuthorCollections, getAuthors } from "../../lib/route-data";
+
+const content = await contentService.getHomeContent();
+
+const items = getAuthors(content).map((author) => ({
+  title: author.name,
+  slug: author.slug,
+  description: author.bio ?? "Browse content by this author.",
+  count: getAuthorCollections(content, author.slug).articles.length + getAuthorCollections(content, author.slug).tutorials.length
+}));
+---
+
+<BaseLayout
+  title="Authors | JelajahAI"
+  description="Browse author profiles and the content they have published."
+  canonical="https://jelajahai.dev/authors/"
+>
+  <main id="main-content" class="page">
+    <section class="hero compact">
+      <p class="eyebrow">Authors</p>
+      <h1>Read byline pages and follow their work.</h1>
+      <p class="lede">
+        Authors tie articles and tutorials together so readers can follow a voice or
+        perspective across the hub.
+      </p>
+    </section>
+
+    <TaxonomyGrid items={items} basePath="authors" />
+  </main>
+</BaseLayout>
+
+<style>
+  .compact {
+    padding-top: 2rem;
+  }
+</style>

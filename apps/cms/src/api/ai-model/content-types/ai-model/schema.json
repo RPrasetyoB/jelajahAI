@@ -1,0 +1,53 @@
+{
+  "kind": "collectionType",
+  "collectionName": "ai_models",
+  "info": {
+    "singularName": "ai-model",
+    "pluralName": "ai-models",
+    "displayName": "AI Model",
+    "description": "Reference page for an AI model"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "slug": {
+      "type": "uid",
+      "targetField": "name",
+      "required": true,
+      "unique": true
+    },
+    "vendor": {
+      "type": "string",
+      "required": true
+    },
+    "description": {
+      "type": "richtext"
+    },
+    "contextWindow": {
+      "type": "string"
+    },
+    "modalities": {
+      "type": "json"
+    },
+    "pricingSummary": {
+      "type": "string"
+    },
+    "releaseDate": {
+      "type": "date"
+    },
+    "docsUrl": {
+      "type": "string",
+      "required": true
+    },
+    "seo": {
+      "type": "component",
+      "component": "shared.seo"
+    }
+  }
+}

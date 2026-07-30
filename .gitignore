@@ -1,0 +1,10 @@
+node_modules
+dist
+.turbo
+.astro
+.DS_Store
+coverage
+.env
+.env.*
+!.env.example
+.trash/

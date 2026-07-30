@@ -1,0 +1,187 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { contentService } from "../../lib/services/content-service";
+
+const content = await contentService.getHomeContent();
+const models = content.models;
+---
+
+<BaseLayout
+  title="Compare AI Models | JelajahAI"
+  description="Compare AI models side by side across vendor, context window, modalities, pricing, and docs."
+  canonical="https://jelajahai.dev/models/compare/"
+>
+  <main id="main-content" class="page">
+    <section class="hero compact">
+      <p class="eyebrow">Models</p>
+      <h1>Compare models side by side.</h1>
+      <p class="lede">
+        Use this reference table to scan tradeoffs quickly before opening a model's dedicated page.
+      </p>
+    </section>
+
+    <section class="table-shell" aria-labelledby="comparison-heading">
+      <div class="section-head">
+        <div>
+          <p class="table-kicker">Matrix / model intelligence</p>
+          <h2 id="comparison-heading">Model comparison</h2>
+        </div>
+        <span class="table-count">{models.length} indexed models</span>
+      </div>
+      <p class="table-hint" id="table-hint">
+        <span aria-hidden="true">↔</span> Scroll horizontally for more columns
+      </p>
+      <div class="table-wrap" tabindex="0" aria-label="Model comparison table. Scroll horizontally for more columns." aria-describedby="table-hint">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Model</th>
+              <th scope="col">Vendor</th>
+              <th scope="col">Context</th>
+              <th scope="col">Modalities</th>
+              <th scope="col">Pricing</th>
+              <th scope="col">Docs</th>
+            </tr>
+          </thead>
+          <tbody>
+            {models.map((model) => (
+              <tr>
+                <th scope="row">
+                  <a href={`/models/${model.slug}/`}>{model.name}</a>
+                  <span>{model.description}</span>
+                </th>
+                <td>{model.vendor}</td>
+                <td>{model.contextWindow ?? "See vendor"}</td>
+                <td>{model.modalities.join(", ")}</td>
+                <td>{model.pricingSummary ?? "See vendor"}</td>
+                <td>
+                  <a href={model.docsUrl} target="_blank" rel="noreferrer">Open docs</a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  .compact {
+    padding-top: 2rem;
+  }
+
+  .table-shell {
+    margin-top: 1.5rem;
+    padding: 1.25rem;
+    border-radius: 1.4rem;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .table-kicker {
+    margin: 0 0 0.45rem;
+    color: #9ff6dc;
+    font: 0.6rem "DM Mono", monospace;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .table-count {
+    color: var(--text-subtle);
+    font: 0.62rem "DM Mono", monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .table-wrap {
+    position: relative;
+    overflow-x: auto;
+    scrollbar-color: #7f92e6 rgba(255,255,255,.06);
+    scrollbar-width: thin;
+  }
+
+  .table-hint {
+    display: none;
+    margin: 0 0 0.7rem;
+    color: #9ff6dc;
+    font: 0.62rem "DM Mono", monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .table-hint span {
+    margin-right: 0.35rem;
+    color: #aebaff;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 760px;
+  }
+
+  th,
+  td {
+    padding: 0.95rem 1rem;
+    vertical-align: top;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+  }
+
+  thead th {
+    color: var(--text-main);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    background: rgba(129, 155, 255, 0.08);
+  }
+
+  tbody th {
+    font-size: 1rem;
+  }
+
+  tbody th a {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: var(--text-main);
+    text-decoration: none;
+    font-weight: 700;
+  }
+
+  tbody th span {
+    display: block;
+    color: var(--text-subtle);
+    font-weight: 400;
+    line-height: 1.5;
+  }
+
+  td {
+    color: var(--text-subtle);
+    line-height: 1.6;
+  }
+
+  td a {
+    color: var(--text-main);
+    text-decoration: none;
+    font-weight: 700;
+  }
+
+  tbody tr { transition: background 180ms ease; }
+  tbody tr:hover { background: rgba(110, 141, 255, 0.08); }
+
+  @media (max-width: 560px) {
+    .table-shell { padding: 1rem; }
+    .table-count { display: none; }
+    .table-hint { display: block; }
+    .table-wrap::after {
+      content: "";
+      position: absolute;
+      inset: 0 0 0 auto;
+      width: 2.6rem;
+      pointer-events: none;
+      background: linear-gradient(90deg, transparent, rgba(7, 13, 29, .92));
+    }
+  }
+</style>

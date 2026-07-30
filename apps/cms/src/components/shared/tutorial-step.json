@@ -1,0 +1,26 @@
+{
+  "collectionName": "components_shared_tutorial_steps",
+  "info": {
+    "displayName": "Tutorial Step",
+    "description": "A single step in a tutorial"
+  },
+  "options": {},
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "body": {
+      "type": "richtext",
+      "required": true
+    },
+    "codeBlock": {
+      "type": "text"
+    },
+    "image": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": ["images"]
+    }
+  }
+}

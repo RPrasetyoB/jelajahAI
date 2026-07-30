@@ -1,0 +1,44 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import TaxonomyGrid from "../../components/TaxonomyGrid.astro";
+import { contentService } from "../../lib/services/content-service";
+import { getTagCollections, getTags } from "../../lib/route-data";
+
+const content = await contentService.getHomeContent();
+
+const items = getTags(content).map((tag) => ({
+  title: tag.name,
+  slug: tag.slug,
+  description: tag.description ?? "Explore related content connected by this tag.",
+  count:
+    getTagCollections(content, tag.slug).articles.length +
+    getTagCollections(content, tag.slug).tools.length +
+    getTagCollections(content, tag.slug).prompts.length +
+    getTagCollections(content, tag.slug).tutorials.length
+}));
+---
+
+<BaseLayout
+  title="Tags | JelajahAI"
+  description="Browse tags and jump into related content across the hub."
+  canonical="https://jelajahai.dev/tags/"
+>
+  <main id="main-content" class="page">
+    <section class="hero compact">
+      <p class="eyebrow">Tags</p>
+      <h1>Cross-cutting topics and themes.</h1>
+      <p class="lede">
+        Tags connect related content across categories so readers can follow a specific
+        idea, tool, or workflow wherever it appears.
+      </p>
+    </section>
+
+    <TaxonomyGrid items={items} basePath="tags" />
+  </main>
+</BaseLayout>
+
+<style>
+  .compact {
+    padding-top: 2rem;
+  }
+</style>
