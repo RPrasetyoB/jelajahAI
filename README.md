@@ -122,3 +122,12 @@ pnpm build
 
 - The web app falls back to seeded sample content when the CMS URL is not configured.
 - Version 2 AI features are intentionally not started yet.
+
+## Docker CMS deployment
+
+The repo includes a root-level `Dockerfile` for the Strapi CMS so it can be deployed from the monorepo root on Docker-based hosts like Koyeb.
+
+- Build context: repository root
+- Runtime app: `apps/cms`
+- Required runtime env vars: the values from [`apps/cms/.env.example`](D:/repository/portfolio/jelajahAI/apps/cms/.env.example)
+- Important: if you want uploaded media to survive redeploys on a free host, use external storage such as Cloudinary instead of the local filesystem
