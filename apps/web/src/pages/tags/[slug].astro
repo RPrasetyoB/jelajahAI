@@ -3,23 +3,15 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import ContentGrid from "../../components/ContentGrid.astro";
 import { contentService } from "../../lib/services/content-service";
 import { getTagCollections, getTags, toCard } from "../../lib/route-data";
-
-export async function getStaticPaths() {
-  const content = await contentService.getHomeContent();
-
-  return getTags(content).map((tag) => ({
-    params: { slug: tag.slug }
-  }));
-}
-
 const content = await contentService.getHomeContent();
-const tag = getTags(content).find((entry) => entry.slug === Astro.params.slug);
+const slug = Astro.params.slug ?? "";
+const tag = getTags(content).find((entry) => entry.slug === slug);
 
 if (!tag) {
-  throw new Error(`Missing tag: ${Astro.params.slug}`);
+  Astro.response.status = 404;
 }
 
-const collections = getTagCollections(content, tag.slug);
+const collections = tag ? getTagCollections(content, tag.slug) : { articles: [], tools: [], prompts: [], tutorials: [] };
 const sections = [
   {
     title: "Articles",
@@ -42,30 +34,46 @@ const sections = [
     items: collections.tutorials.map((entry) => toCard(entry))
   }
 ];
+const pageTitle = tag ? `${tag.name} | Tags | JelajahAI` : "Tag not found | JelajahAI";
+const pageDescription = tag ? tag.description ?? `Browse related content tagged ${tag.name}.` : "The tag you requested could not be found.";
+const pageCanonical = tag ? `https://jelajahai.dev/tags/${tag.slug}/` : `https://jelajahai.dev/tags/${slug}/`;
 ---
 
 <BaseLayout
-  title={`${tag.name} | Tags | JelajahAI`}
-  description={tag.description ?? `Browse related content tagged ${tag.name}.`}
-  canonical={`https://jelajahai.dev/tags/${tag.slug}/`}
+  title={pageTitle}
+  description={pageDescription}
+  canonical={pageCanonical}
 >
   <main id="main-content" class="page">
-    <section class="hero compact">
-      <p class="eyebrow">Tag</p>
-      <h1>{tag.name}</h1>
-      <p class="lede">{tag.description}</p>
-    </section>
-
-    {sections.map((section) =>
-      section.items.length > 0 ? (
-        <section class="section-block">
-          <div class="section-head">
-            <h2>{section.title}</h2>
-            <a href={`/${section.path}/`}>View all</a>
-          </div>
-          <ContentGrid items={section.items} kindLabel={section.title} pathSegment={section.path} />
+    {tag ? (
+      <>
+        <section class="hero compact">
+          <p class="eyebrow">Tag</p>
+          <h1>{tag.name}</h1>
+          <p class="lede">{tag.description}</p>
         </section>
-      ) : null
+
+        {sections.map((section) =>
+          section.items.length > 0 ? (
+            <section class="section-block">
+              <div class="section-head">
+                <h2>{section.title}</h2>
+                <a href={`/${section.path}/`}>View all</a>
+              </div>
+              <ContentGrid items={section.items} kindLabel={section.title} pathSegment={section.path} />
+            </section>
+          ) : null
+        )}
+      </>
+    ) : (
+      <section class="hero compact">
+        <p class="eyebrow">Not found</p>
+        <h1>Tag not found</h1>
+        <p class="lede">The tag may have been removed or the URL is outdated.</p>
+        <div class="actions">
+          <a href="/tags/">Browse tags</a>
+        </div>
+      </section>
     )}
   </main>
 </BaseLayout>

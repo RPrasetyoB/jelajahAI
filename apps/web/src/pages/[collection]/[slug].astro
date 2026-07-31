@@ -11,32 +11,24 @@ import {
 } from "../../lib/route-data";
 import type { ContentKind } from "../../lib/content-types";
 
-export async function getStaticPaths() {
-  const content = await contentService.getHomeContent();
-  const collections: ContentKind[] = ["articles", "tools", "prompts", "tutorials", "models"];
+const collections: ContentKind[] = ["articles", "tools", "prompts", "tutorials", "models"];
+const collection = Astro.params.collection as ContentKind | undefined;
+const slug = Astro.params.slug ?? "";
+const isValidCollection = Boolean(collection && collections.includes(collection));
+const pageCollection = (isValidCollection ? collection : "prompts") as ContentKind;
 
-  return collections.flatMap((collection) =>
-    getCollectionEntries(content, collection).map((item) => ({
-      params: { collection, slug: item.slug },
-      props: { collection, slug: item.slug }
-    }))
-  );
+if (!isValidCollection) {
+  Astro.response.status = 404;
 }
 
-type Props = {
-  collection: ContentKind;
-  slug: string;
-};
-
-const { collection, slug } = Astro.props as Props;
 const content = await contentService.getHomeContent();
-const entry = getCollectionEntry(content, collection, slug);
-const detail = getCollectionDetail(content, collection, slug);
-const articleBodyHtml = collection === "articles" ? renderMarkdown(detail?.body ?? "") : "";
+const entry = isValidCollection ? getCollectionEntry(content, pageCollection, slug) : null;
+const detail = isValidCollection ? getCollectionDetail(content, pageCollection, slug) : null;
+const articleBodyHtml = pageCollection === "articles" && detail ? renderMarkdown(detail.body ?? "") : "";
 const toolPricingTabs =
-  collection === "tools" && entry && "shortDescription" in entry ? entry.pricingTabs ?? [] : [];
+  pageCollection === "tools" && entry && "shortDescription" in entry ? entry.pricingTabs ?? [] : [];
 const toolPricingDefaultTab =
-  collection === "tools" && entry && "shortDescription" in entry ? entry.pricingDefaultTab ?? toolPricingTabs[0]?.id ?? "" : "";
+  pageCollection === "tools" && entry && "shortDescription" in entry ? entry.pricingDefaultTab ?? toolPricingTabs[0]?.id ?? "" : "";
 const toolPricingTabsPreview =
   toolPricingTabs.length > 0
     ? toolPricingTabs
@@ -65,7 +57,7 @@ const toolPricingTabsPreview =
         .join("\n\n")
     : "";
 const toolSourcePreview =
-  collection === "tools" && entry && "shortDescription" in entry
+  pageCollection === "tools" && entry && "shortDescription" in entry
     ? [
         `Short description: ${entry.shortDescription}`,
         entry.longDescription ? `Long description:\n${entry.longDescription}` : "",
@@ -85,50 +77,69 @@ const toolSourcePreview =
         .join("\n\n")
     : "";
 
-if (!detail) {
-  throw new Error(`Missing content for ${collection}/${slug}`);
-}
-
-if (!entry) {
-  throw new Error(`Missing entry for ${collection}/${slug}`);
+const isNotFound = !isValidCollection || !detail || !entry;
+if (isNotFound) {
+  Astro.response.status = 404;
 }
 
 const taxonomyLinks = [
-  detail.category ? { label: detail.category.name, href: `/categories/${detail.category.slug}/` } : null,
-  ...(detail.tags ?? []).map((tag) => ({ label: tag.name, href: `/tags/${tag.slug}/` })),
-  detail.author ? { label: detail.author.name, href: `/authors/${detail.author.slug}/` } : null
+  detail?.category ? { label: detail.category.name, href: `/categories/${detail.category.slug}/` } : null,
+  ...(detail?.tags ?? []).map((tag) => ({ label: tag.name, href: `/tags/${tag.slug}/` })),
+  detail?.author ? { label: detail.author.name, href: `/authors/${detail.author.slug}/` } : null
 ].filter((item): item is { label: string; href: string } => item !== null);
 
-const related = getCollectionEntries(content, collection)
-  .filter((item) => item.slug !== slug)
-  .filter((item) => {
-    if (detail.category && "category" in item && item.category?.slug === detail.category.slug) {
-      return true;
-    }
+const related = isValidCollection && detail
+  ? getCollectionEntries(content, pageCollection)
+      .filter((item) => item.slug !== slug)
+      .filter((item) => {
+        if (detail.category && "category" in item && item.category?.slug === detail.category.slug) {
+          return true;
+        }
 
-    if ("tags" in item && (detail.tags ?? []).some((tag) => item.tags.some((itemTag) => itemTag.slug === tag.slug))) {
-      return true;
-    }
+        if ("tags" in item && (detail.tags ?? []).some((tag) => item.tags.some((itemTag) => itemTag.slug === tag.slug))) {
+          return true;
+        }
 
-    if ("author" in item && detail.author?.slug && item.author?.slug === detail.author.slug) {
-      return true;
-    }
+        if ("author" in item && detail.author?.slug && item.author?.slug === detail.author.slug) {
+          return true;
+        }
 
-    return false;
-  })
-  .slice(0, 3)
-  .map((item) => getCollectionDetail(content, collection, item.slug))
-  .filter((item): item is NonNullable<typeof item> => item !== null);
+        return false;
+      })
+      .slice(0, 3)
+      .map((item) => getCollectionDetail(content, pageCollection, item.slug))
+      .filter((item): item is NonNullable<typeof item> => item !== null)
+  : [];
+
+const pageTitle = isNotFound
+  ? "Content not found | JelajahAI"
+  : `${detail.title} | ${getCollectionTitle(pageCollection)} | JelajahAI`;
+const pageDescription = isNotFound
+  ? "The content you requested could not be found."
+  : detail.excerpt ?? getCollectionDescription(pageCollection);
+const pageCanonical = isNotFound
+  ? `https://jelajahai.dev/${pageCollection}/${slug}/`
+  : `https://jelajahai.dev/${pageCollection}/${slug}/`;
 ---
 
 <BaseLayout
-  title={`${detail.title} | ${getCollectionTitle(collection)} | JelajahAI`}
-  description={detail.excerpt ?? getCollectionDescription(collection)}
-  canonical={`https://jelajahai.dev/${collection}/${slug}/`}
+  title={pageTitle}
+  description={pageDescription}
+  canonical={pageCanonical}
 >
   <main id="main-content" class="page">
-    <article class:list={["detail", { "tool-detail": collection === "tools" }]}>
-      <p class="eyebrow">{getCollectionTitle(collection)}</p>
+    {isNotFound ? (
+      <section class="hero compact">
+        <p class="eyebrow">Not found</p>
+        <h1>We couldn&apos;t find that {pageCollection} entry.</h1>
+        <p class="lede">The URL may be stale, or the entry may not have been published with this slug.</p>
+        <div class="actions">
+          <a href={`/${pageCollection}/`}>Back to {getCollectionTitle(pageCollection)}</a>
+        </div>
+      </section>
+    ) : (
+    <article class:list={["detail", { "tool-detail": pageCollection === "tools" }]}>
+      <p class="eyebrow">{getCollectionTitle(pageCollection)}</p>
       <h1>{detail.title}</h1>
       {detail.excerpt && <p class="lede">{detail.excerpt}</p>}
       {taxonomyLinks.length > 0 && (
@@ -136,7 +147,7 @@ const related = getCollectionEntries(content, collection)
           {taxonomyLinks.map((link) => <a href={link.href}>{link.label}</a>)}
         </nav>
       )}
-      {collection === "articles" && (
+      {pageCollection === "articles" && (
         <section class="article-layout">
           <div class="panel">
             <h2>Article</h2>
@@ -158,7 +169,7 @@ const related = getCollectionEntries(content, collection)
         </section>
       )}
 
-      {collection === "tools" && "shortDescription" in entry && (
+      {pageCollection === "tools" && "shortDescription" in entry && (
         <section class="tool-layout">
           <div class="panel tool-overview">
             <h2>Overview</h2>
@@ -272,7 +283,7 @@ const related = getCollectionEntries(content, collection)
         </section>
       )}
 
-      {collection === "prompts" && "promptText" in entry && (
+      {pageCollection === "prompts" && "promptText" in entry && (
         <section class="detail-grid">
           <div class="panel">
             <h2>Prompt</h2>
@@ -294,7 +305,7 @@ const related = getCollectionEntries(content, collection)
         </section>
       )}
 
-      {collection === "tutorials" && "steps" in entry && (
+      {pageCollection === "tutorials" && "steps" in entry && (
         <section class="detail-grid">
           <div class="panel">
             <h2>Steps</h2>
@@ -324,7 +335,7 @@ const related = getCollectionEntries(content, collection)
         </section>
       )}
 
-      {collection === "models" && "vendor" in entry && (
+      {pageCollection === "models" && "vendor" in entry && (
         <section class="detail-grid">
           <div class="panel">
             <h2>Capabilities</h2>
@@ -362,7 +373,7 @@ const related = getCollectionEntries(content, collection)
             {related.map((item) => (
               <article>
                 <p class="card-kicker">Related</p>
-                <h3><a href={`/${collection}/${item.slug}`}>{item.title}</a></h3>
+                <h3><a href={`/${pageCollection}/${item.slug}`}>{item.title}</a></h3>
                 <p>{item.excerpt}</p>
               </article>
             ))}
@@ -370,6 +381,7 @@ const related = getCollectionEntries(content, collection)
         </section>
       )}
     </article>
+    )}
   </main>
 </BaseLayout>
 

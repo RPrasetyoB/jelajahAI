@@ -11,33 +11,22 @@ import {
 import type { AiTool } from "@jelajahai/types";
 import type { ContentKind } from "../../lib/content-types";
 
-export async function getStaticPaths() {
-  const content = await contentService.getHomeContent();
-  const collections: ContentKind[] = ["articles", "tools", "prompts", "tutorials", "models"];
+const collections: ContentKind[] = ["articles", "tools", "prompts", "tutorials", "models"];
+const collection = Astro.params.collection as ContentKind | undefined;
+const isValidCollection = Boolean(collection && collections.includes(collection));
+const pageCollection = (isValidCollection ? collection : "articles") as ContentKind;
 
-  return collections.map((collection) => ({
-    params: { collection },
-      props: {
-        title: getCollectionTitle(collection),
-        description: getCollectionDescription(collection),
-        items: getCollectionCards(content, collection),
-        entries: getCollectionEntries(content, collection),
-        collection
-      }
-    }));
+if (!isValidCollection) {
+  Astro.response.status = 404;
 }
 
-type Props = {
-  title: string;
-  description: string;
-  items: ReturnType<typeof getCollectionCards>;
-  entries: ReturnType<typeof getCollectionEntries>;
-  collection: ContentKind;
-};
-
-const { title, description, items, entries, collection } = Astro.props as Props;
-const toolEntries = collection === "tools" ? (entries as AiTool[]) : [];
-const toolCategories = collection === "tools"
+const content = await contentService.getHomeContent();
+const title = isValidCollection ? getCollectionTitle(pageCollection) : "Content not found";
+const description = isValidCollection ? getCollectionDescription(pageCollection) : "The section you requested could not be found.";
+const items = isValidCollection ? getCollectionCards(content, pageCollection) : [];
+const entries = isValidCollection ? getCollectionEntries(content, pageCollection) : [];
+const toolEntries = pageCollection === "tools" ? (entries as AiTool[]) : [];
+const toolCategories = pageCollection === "tools"
   ? Array.from(
       new Map(
         toolEntries
@@ -48,23 +37,25 @@ const toolCategories = collection === "tools"
   : [];
 ---
 
-<BaseLayout title={`${title} | JelajahAI`} description={description} canonical={`https://jelajahai.dev/${collection}/`}>
+<BaseLayout title={`${title} | JelajahAI`} description={description} canonical={`https://jelajahai.dev/${pageCollection}/`}>
   <main id="main-content" class="page">
-    <section class="hero compact">
-      <p class="eyebrow">{title}</p>
-      <h1>{description}</h1>
-      <p class="lede">
-        Browse the latest curated entries in this section. Each detail page links back
-        to the broader hub for context and discovery.
-      </p>
-      {collection === "models" && (
-        <div class="actions">
-          <a href="/models/compare/">Compare models</a>
-        </div>
-      )}
-    </section>
+    {isValidCollection ? (
+      <>
+        <section class="hero compact">
+          <p class="eyebrow">{title}</p>
+          <h1>{description}</h1>
+          <p class="lede">
+            Browse the latest curated entries in this section. Each detail page links back
+            to the broader hub for context and discovery.
+          </p>
+          {pageCollection === "models" && (
+            <div class="actions">
+              <a href="/models/compare/">Compare models</a>
+            </div>
+          )}
+        </section>
 
-    {collection === "tools" ? (
+        {pageCollection === "tools" ? (
       <section class="tools-directory" aria-labelledby="tool-filters-heading">
         <div class="section-head">
           <div>
@@ -114,8 +105,19 @@ const toolCategories = collection === "tools"
           ))}
         </div>
       </section>
+        ) : (
+          <ContentGrid items={items} kindLabel={title} pathSegment={pageCollection} />
+        )}
+      </>
     ) : (
-      <ContentGrid items={items} kindLabel={title} pathSegment={collection} />
+      <section class="hero compact">
+        <p class="eyebrow">Not found</p>
+        <h1>Section not found</h1>
+        <p class="lede">The section may have been removed or the URL is outdated.</p>
+        <div class="actions">
+          <a href="/">Go home</a>
+        </div>
+      </section>
     )}
   </main>
 </BaseLayout>

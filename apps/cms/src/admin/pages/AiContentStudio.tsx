@@ -1180,6 +1180,16 @@ export default function AiContentStudio() {
     try {
       persistSessionKey();
 
+      const hasSourceReference =
+        Boolean(activeDraft.sourceDocumentId || activeDraft.sourceSlug || form.sourceEntryDocumentId || form.sourceEntrySlug);
+      const publishSourcePayload = hasSourceReference
+        ? {
+            sourceDocumentId: activeDraft.sourceDocumentId || form.sourceEntryDocumentId || undefined,
+            sourceSlug: activeDraft.sourceSlug || form.sourceEntrySlug || selectedSourceEntry?.slug || undefined,
+            sourceTitle: form.sourceTitle || selectedSourceEntry?.title || undefined
+          }
+        : {};
+
       const response = await fetch("/api/ai-content/publish", {
         method: "POST",
         headers: {
@@ -1188,9 +1198,7 @@ export default function AiContentStudio() {
         },
         body: JSON.stringify({
           draft: activeDraft,
-          sourceDocumentId: activeDraft.sourceDocumentId || form.sourceEntryDocumentId || undefined,
-          sourceSlug: activeDraft.sourceSlug || form.sourceEntrySlug || selectedSourceEntry?.slug || undefined,
-          sourceTitle: form.sourceTitle || selectedSourceEntry?.title || ("title" in activeDraft ? activeDraft.title : activeDraft.name)
+          ...publishSourcePayload
         })
       });
 
